@@ -1,28 +1,42 @@
-FROM ros:noetic
+FROM osrf/ros:noetic-desktop-full
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update
+# =========================
+# Instalar dependencias básicas
+# =========================
 RUN apt-get update && apt-get install -y \
-    git \
     python3-catkin-tools \
-    ros-noetic-gazebo-ros \
-    ros-noetic-gazebo-ros-pkgs \
-    ros-noetic-turtlebot3 \
-    ros-noetic-turtlebot3-simulations \
+    python3-osrf-pycommon \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Create workspace
+# =========================
+# Crear workspace
+# =========================
 RUN mkdir -p /root/catkin_ws/src
-WORKDIR /root/catkin_ws/src
-
-# Clone tortoisebot simulation
-RUN git clone https://github.com/Angelo9AC/checkpoint23.git
-
-# Copy your package (will mount later)
 WORKDIR /root/catkin_ws
 
-# Build workspace
+# =========================
+# Copiar TODOS los paquetes
+# (tortoisebot + checkpoint23)
+# =========================
+COPY ./src /root/catkin_ws/src
+
+# =========================
+# Build normal (catkin_make)
+# =========================
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 
-CMD ["bash"]
+# =========================
+# Source automático
+# =========================
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc && \
+    echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
+
+WORKDIR /root/catkin_ws
+
+# =========================
+# Entrypoint para abrir bash listo para ROS + GUI
+# =========================
+CMD ["/bin/bash"]
