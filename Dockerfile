@@ -3,13 +3,23 @@ FROM osrf/ros:noetic-desktop-full
 ENV DEBIAN_FRONTEND=noninteractive
 
 # =========================
-# Instalar dependencias básicas
+# Dependencias base + herramientas ROS
 # =========================
 RUN apt-get update && apt-get install -y \
     python3-catkin-tools \
+    python3-rosdep \
     python3-osrf-pycommon \
+    python3-rospkg \
     build-essential \
+    git \
+    x11-apps \
     && rm -rf /var/lib/apt/lists/*
+
+# =========================
+# Inicializar rosdep
+# =========================
+RUN rosdep init || true
+RUN rosdep update
 
 # =========================
 # Crear workspace
@@ -18,25 +28,37 @@ RUN mkdir -p /root/catkin_ws/src
 WORKDIR /root/catkin_ws
 
 # =========================
-# Copiar TODOS los paquetes
-# (tortoisebot + checkpoint23)
+# Copiar paquetes (SOLO docker_src)
 # =========================
-COPY ./src /root/catkin_ws/src
+COPY ./docker_src /root/catkin_ws/src
 
 # =========================
-# Build normal (catkin_make)
+# Instalar dependencias automáticamente
 # =========================
-RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
+    rosdep install --from-paths src --ignore-src -r -y"
 
 # =========================
-# Source automático
+# Compilar workspace
 # =========================
-RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc && \
-    echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
+    catkin_make"
+
+# =========================
+# Configurar entorno automático
+# =========================
+RUN echo 'source /opt/ros/noetic/setup.bash' >> ~/.bashrc && \
+    echo 'source /root/catkin_ws/devel/setup.bash' >> ~/.bashrc
+
+# =========================
+# Variables para evitar errores de Gazebo en CI
+# =========================
+ENV QT_X11_NO_MITSHM=1
+ENV DISPLAY=:99
 
 WORKDIR /root/catkin_ws
 
 # =========================
-# Entrypoint para abrir bash listo para ROS + GUI
+# Comando por defecto
 # =========================
 CMD ["/bin/bash"]
